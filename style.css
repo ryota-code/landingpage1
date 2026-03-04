@@ -4,29 +4,22 @@
   box-sizing: border-box;
 }
 
-.retro-animation-wrapper {
-  margin: 0;
-  padding: 20px 0;
-  background-color: #111;
+body {
+  background-color: #000;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   overflow: hidden;
-  font-family: 'DotGothic16', sans-serif;
 }
 
-.canvas-container {
+.game-screen {
   width: 100%;
   max-width: 960px;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 426 / 240;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #000;
-  border: 2px solid #555;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
   position: relative;
 }
 
@@ -35,83 +28,4 @@ canvas {
   height: 100%;
   image-rendering: pixelated;
   display: block;
-}
-
-.controls-container {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  align-items: center;
-  background: #222;
-  padding: 20px;
-  border-radius: 8px;
-  border: 2px solid #444;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-}
-
-.time-controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.time-controls button {
-  font-family: 'DotGothic16', sans-serif;
-  font-size: 16px;
-  padding: 8px 16px;
-  border-radius: 4px;
-  border: 2px solid #666;
-  background-color: #333;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.time-controls button:hover {
-  background-color: #555;
-  border-color: #87CEEB;
-}
-
-.time-controls button.active {
-  background-color: #87CEEB;
-  color: #000;
-  border-color: #fff;
-}
-
-.input-controls {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.input-controls label {
-  color: #fff;
-  font-size: 18px;
-}
-
-.input-controls input[type="text"] {
-  padding: 8px 12px;
-  font-size: 18px;
-  border-radius: 4px;
-  border: 1px solid #666;
-  background-color: #111;
-  color: #fff;
-  width: 350px;
-  font-family: 'DotGothic16', sans-serif;
-}
-
-.input-controls input[type="text"]:focus {
-  outline: none;
-  border-color: #87CEEB;
-}
-
-@media (max-width: 600px) {
-  .input-controls {
-    flex-direction: column;
-  }
-  .input-controls input[type="text"] {
-    width: 100%;
-  }
 }

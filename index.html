@@ -3,34 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Retro Pixel Animation</title>
+  <title>Game Opening Animation</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="retro-animation-wrapper">
-    <div class="canvas-container">
-      <canvas id="screen"></canvas>
-    </div>
-
-    <div class="controls-container">
-      <div class="time-controls" id="timeButtons">
-        <button data-time="dawn">夜明け</button>
-        <button data-time="morning" class="active">あさ</button>
-        <button data-time="noon">ひる</button>
-        <button data-time="evening">ゆう</button>
-        <button data-time="night">よる</button>
-      </div>
-
-      <div class="input-controls">
-        <label for="messageInput">メッセージ：</label>
-        <input type="text" id="messageInput" placeholder="ここに入力すると文字が変わります" value="">
-      </div>
-    </div>
+  <div class="game-screen">
+    <canvas id="screen"></canvas>
   </div>
-
   <script src="script.js"></script>
 </body>
 </html>

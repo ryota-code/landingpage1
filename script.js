@@ -1,55 +1,11 @@
 (function() {
   const canvas = document.getElementById('screen');
   const ctx = canvas.getContext('2d');
-  const messageInput = document.getElementById('messageInput');
-  const timeButtons = document.querySelectorAll('#timeButtons button');
 
   canvas.width = 426;
   canvas.height = 240;
 
-  const timePalettes = {
-    dawn: {
-      skyGradient: { top: '#AFEEEE', bottom: '#FFDAB9' },
-      mountBack: '#6B8E23', mountFront: '#556B2F',
-      groundBase: '#9ACD32', groundPattern: '#6B8E23', dirt: '#654321',
-      isNight: false, sunX: 10, sunY: 175, sunColor: '#FF4500'
-    },
-    morning: {
-      sky: '#87CEEB',
-      mountBack: '#3CB371', mountFront: '#2E8B57',
-      groundBase: '#7CFC00', groundPattern: '#32CD32', dirt: '#8B4513',
-      isNight: false, sunX: 100, sunY: 60, sunColor: '#FFD700'
-    },
-    noon: {
-      sky: '#00BFFF',
-      mountBack: '#2E8B57', mountFront: '#006400',
-      groundBase: '#32CD32', groundPattern: '#228B22', dirt: '#8B4513',
-      isNight: false, sunX: 193, sunY: 20, sunColor: '#FFD700'
-    },
-    evening: {
-      sky: '#FF7F50',
-      mountBack: '#8B4513', mountFront: '#A0522D',
-      groundBase: '#B8860B', groundPattern: '#DAA520', dirt: '#5C4033',
-      isNight: false, sunX: 320, sunY: 170, sunColor: '#FF4500'
-    },
-    night: {
-      sky: '#000033',
-      mountBack: '#191970', mountFront: '#000080',
-      groundBase: '#004d00', groundPattern: '#003300', dirt: '#1a1a1a',
-      isNight: true, moonX: 340, moonY: 40
-    }
-  };
-
-  let currentTime = 'morning';
-
-  timeButtons.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      timeButtons.forEach(b => b.classList.remove('active'));
-      e.target.classList.add('active');
-      currentTime = e.target.getAttribute('data-time');
-    });
-  });
-
+  // --- Images ---
   const images = {
     left1: new Image(),
     left2: new Image(),
@@ -62,10 +18,6 @@
   const tintedLogoCanvas = document.createElement('canvas');
   let isLogoReady = false;
 
-  const moonCacheCanvas = document.createElement('canvas');
-  let isMoonReady = false;
-  const moonImageSize = 40;
-
   images.titleLogo.onload = () => {
     tintedLogoCanvas.width = images.titleLogo.width;
     tintedLogoCanvas.height = images.titleLogo.height;
@@ -77,14 +29,6 @@
     isLogoReady = true;
   };
 
-  images.moonImage.onload = () => {
-    moonCacheCanvas.width = moonImageSize;
-    moonCacheCanvas.height = moonImageSize;
-    const mCtx = moonCacheCanvas.getContext('2d');
-    mCtx.drawImage(images.moonImage, 0, 0, images.moonImage.width, images.moonImage.height, 0, 0, moonImageSize, moonImageSize);
-    isMoonReady = true;
-  };
-
   images.left1.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/88b01ae-6deb-2436-d70b-707f3b24a4df__1.png";
   images.left2.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/4d20d-dbcb-c1a-c0e0-ca740e55d8c0__2.png";
   images.right1.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/48c5787-6528-52cc-e7e5-300b1f0fb628__2026-01-29_18.44.19-removebg-preview_1_.png";
@@ -92,45 +36,75 @@
   images.titleLogo.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/5c026b3-ae8-2638-db00-64a27ba65088_ee9d6b42-5a8c-498b-ab9a-ace525915297.png";
   images.moonImage.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/286e7fc-3008-ef3-fbe2-5efcd180e4d__.png";
 
-  let frameCount = 0;
-  let state = 'enter1';
-  const START_CAT_X = -100;
-  const START_MOUSE_X = canvas.width + 20;
-
-  let catX = START_CAT_X;
-  let mouseX = START_MOUSE_X;
-
-  const catTargetX1 = 44, mouseTargetX1 = 302;
-  const catTargetX2 = 108, mouseTargetX2 = 238;
+  // --- Constants ---
   const groundY = 200;
   const leftCharHeight = 80;
   const rightCharHeight = 40;
+  const CW = canvas.width;
+  const CH = canvas.height;
 
+  // --- State ---
+  let frameCount = 0;
   let animFrame = 0;
   let stepTimer = 0;
-  let pauseTimer = 0;
 
-  const clouds = [];
-  for (let i = 0; i < 5; i++) {
-    clouds.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * 50 + 10,
-      width: Math.random() * 40 + 40,
-      speed: Math.random() * 0.3 + 0.1,
-      isCat: false
+  // Animation phases
+  // 1: blackScreen - fade in from black
+  // 2: charsEnter - characters walk in from sides
+  // 3: charsPause - characters stop, face each other
+  // 4: titleDrop - title logo drops in with bounce
+  // 5: menuAppear - menu fades in
+  // 6: cursorMove - cursor blinks on "冒険を始める"
+  // 7: selectFlash - selection flash effect
+  // 8: fadeOut - fade to white then done
+  let phase = 'blackScreen';
+  let phaseTimer = 0;
+
+  // Character positions
+  let catX = -100;
+  let mouseX = CW + 20;
+  const catTargetX = 80;
+  const mouseTargetX = 280;
+
+  // Title position (drops from top)
+  let titleY = -80;
+  const titleTargetY = 30;
+  let titleBounceVel = 0;
+  let titleBouncing = false;
+
+  // Menu state
+  let menuAlpha = 0;
+  let cursorBlink = 0;
+  let selectedItem = -1; // -1 = none, 0 = 冒険を始める
+  let selectFlashCount = 0;
+
+  // Fade
+  let fadeAlpha = 1.0; // start fully black
+  let whiteAlpha = 0;
+
+  // Stars for background
+  const stars = [];
+  for (let i = 0; i < 30; i++) {
+    stars.push({
+      x: Math.random() * CW,
+      y: Math.random() * (groundY - 20),
+      twinkle: Math.random() * 100
     });
   }
-  clouds.push({ x: Math.random() * canvas.width, y: 25, width: 60, speed: 0.2, isCat: true });
 
-  const logoCloud = { x: canvas.width + 10, y: 35, width: 0, speed: 0.2, scale: 0.7 };
+  // Clouds
+  const clouds = [];
+  for (let i = 0; i < 4; i++) {
+    clouds.push({
+      x: Math.random() * CW,
+      y: Math.random() * 40 + 15,
+      width: Math.random() * 40 + 40,
+      speed: Math.random() * 0.2 + 0.1
+    });
+  }
 
-  const stars = [
-    { x: 50, y: 30 }, { x: 120, y: 80 }, { x: 200, y: 40 },
-    { x: 280, y: 90 }, { x: 380, y: 60 }, { x: 400, y: 20 }
-  ];
-
-  // 向き合う時間を追加（約30フレーム＝0.5秒）
-  const ADDED_STARE_PAUSE = 30;
+  // Particle effects for selection
+  const particles = [];
 
   function drawCharacter(img, x, y, h, flipH) {
     if (!img.complete) return;
@@ -147,204 +121,366 @@
     ctx.restore();
   }
 
-  function drawEmote(x, y, charH, type, shouldFlash) {
-    if (shouldFlash && Math.floor(frameCount / 10) % 2 === 0) return;
+  function drawPixelText(text, x, y, size, color, align) {
+    ctx.fillStyle = color;
+    ctx.font = size + 'px "DotGothic16", sans-serif';
+    ctx.textAlign = align || 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+  }
 
-    if (type === '!') {
-      ctx.fillStyle = '#FF0000';
-      ctx.fillRect(x + charH / 2 - 2, y - 16, 4, 10);
-      ctx.fillRect(x + charH / 2 - 2, y - 4, 4, 4);
-    } else if (type === 'sweat') {
-      const sweatStartX = x + charH * 0.2;
-      const sweatStartY = y - charH * 0.1;
+  function drawBackground() {
+    // Night sky with gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, groundY);
+    gradient.addColorStop(0, '#000022');
+    gradient.addColorStop(0.6, '#000044');
+    gradient.addColorStop(1, '#001133');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, CW, CH);
 
-      const currentPause = pauseTimer - ADDED_STARE_PAUSE;
-      if (currentPause < 0) return;
+    // Stars
+    stars.forEach(s => {
+      const brightness = Math.sin((frameCount + s.twinkle) * 0.05) * 0.5 + 0.5;
+      ctx.fillStyle = `rgba(255, 255, 255, ${brightness * 0.8 + 0.2})`;
+      ctx.fillRect(Math.floor(s.x), Math.floor(s.y), 2, 2);
+    });
 
-      const dropPos1 = { x: sweatStartX, y: sweatStartY + currentPause * 0.8 };
-      const dropPos2 = { x: sweatStartX - 5, y: sweatStartY + (currentPause - 8) * 0.8 + 10 };
-      const dropPos3 = { x: sweatStartX + 5, y: sweatStartY + (currentPause - 16) * 0.8 + 20 };
+    // Mountains (dark silhouette)
+    ctx.fillStyle = '#0a0a2e';
+    // Back mountain range
+    for (let x = 0; x < CW; x += 2) {
+      const h = Math.sin(x * 0.015) * 30 + Math.sin(x * 0.008) * 20 + 50;
+      ctx.fillRect(x, groundY - h, 2, h);
+    }
+    // Front mountain range
+    ctx.fillStyle = '#0d0d3a';
+    for (let x = 0; x < CW; x += 2) {
+      const h = Math.sin(x * 0.02 + 1) * 20 + Math.sin(x * 0.01 + 2) * 15 + 35;
+      ctx.fillRect(x, groundY - h, 2, h);
+    }
 
-      ctx.fillStyle = '#00BFFF';
-      if (currentPause > 0 && currentPause < 50) ctx.fillRect(dropPos1.x, dropPos1.y, 4, 7);
-      if (currentPause > 8 && currentPause < 60) ctx.fillRect(dropPos2.x, dropPos2.y, 4, 7);
-      if (pauseTimer > 16 && currentPause < 70) ctx.fillRect(dropPos3.x, dropPos3.y, 4, 7);
+    // Ground
+    ctx.fillStyle = '#0a2a0a';
+    ctx.fillRect(0, groundY - 4, CW, CH - groundY + 4);
+    ctx.fillStyle = '#0d3d0d';
+    ctx.fillRect(0, groundY, CW, 3);
+    ctx.fillStyle = '#061a06';
+    ctx.fillRect(0, groundY + 8, CW, 2);
+    ctx.fillStyle = '#1a0a00';
+    ctx.fillRect(0, groundY + 14, CW, CH - groundY - 14);
+
+    // Clouds (dark, subtle)
+    clouds.forEach(c => {
+      c.x -= c.speed;
+      if (c.x + c.width < -10) c.x = CW + 10;
+      ctx.fillStyle = 'rgba(100, 100, 150, 0.3)';
+      ctx.fillRect(Math.floor(c.x), Math.floor(c.y), Math.floor(c.width), 12);
+      ctx.fillRect(Math.floor(c.x) + 8, Math.floor(c.y) - 6, Math.floor(c.width) - 20, 6);
+    });
+  }
+
+  function drawTitleLogo() {
+    if (!isLogoReady) return;
+    const logoH = 50;
+    const aspect = tintedLogoCanvas.width / tintedLogoCanvas.height;
+    const logoW = logoH * aspect;
+    const logoX = (CW - logoW) / 2;
+
+    // Glow effect behind logo
+    ctx.shadowColor = '#4488ff';
+    ctx.shadowBlur = 15 + Math.sin(frameCount * 0.05) * 5;
+    ctx.drawImage(tintedLogoCanvas, logoX, titleY, logoW, logoH);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawMenu() {
+    if (menuAlpha <= 0) return;
+
+    ctx.save();
+    ctx.globalAlpha = menuAlpha;
+
+    const menuItems = [
+      'ぼうけんを はじめる',
+      'つづきから',
+      'せってい'
+    ];
+
+    const menuX = CW / 2;
+    const menuStartY = 120;
+    const menuSpacing = 24;
+
+    // Menu window background
+    const winW = 200;
+    const winH = menuItems.length * menuSpacing + 24;
+    const winX = menuX - winW / 2;
+    const winY = menuStartY - 16;
+
+    ctx.fillStyle = 'rgba(0, 0, 40, 0.85)';
+    ctx.fillRect(winX, winY, winW, winH);
+    // Border
+    ctx.strokeStyle = '#6688cc';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(winX + 2, winY + 2, winW - 4, winH - 4);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(winX + 5, winY + 5, winW - 10, winH - 10);
+
+    for (let i = 0; i < menuItems.length; i++) {
+      const itemY = menuStartY + i * menuSpacing + 4;
+      let color = '#888899';
+
+      if (i === 0) {
+        // "冒険を始める" is selectable
+        if (selectedItem === 0) {
+          // Flashing when selected
+          color = (selectFlashCount % 2 === 0) ? '#FFFFFF' : '#FFFF00';
+        } else {
+          color = '#FFFFFF';
+        }
+      }
+
+      drawPixelText(menuItems[i], menuX + 10, itemY, 16, color, 'center');
+
+      // Cursor arrow for first item
+      if (i === 0 && selectedItem === -1) {
+        const cursorVisible = Math.floor(cursorBlink / 15) % 2 === 0;
+        if (cursorVisible) {
+          // Pixel arrow cursor
+          ctx.fillStyle = '#FFFFFF';
+          const arrowX = winX + 14;
+          const arrowY = itemY - 5;
+          ctx.fillRect(arrowX, arrowY + 2, 8, 6);
+          ctx.fillRect(arrowX + 8, arrowY, 4, 10);
+          ctx.fillRect(arrowX + 12, arrowY + 2, 2, 6);
+        }
+      }
+    }
+
+    // "PRESS START" text at bottom
+    if (selectedItem === -1) {
+      const pressAlpha = Math.sin(frameCount * 0.08) * 0.4 + 0.6;
+      ctx.globalAlpha = menuAlpha * pressAlpha;
+      drawPixelText('▶ PRESS START', menuX, menuStartY + menuItems.length * menuSpacing + 16, 12, '#88aadd', 'center');
+    }
+
+    ctx.restore();
+  }
+
+  function drawParticles() {
+    particles.forEach((p, i) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 1;
+      p.vy += 0.1;
+      if (p.life > 0) {
+        ctx.fillStyle = `rgba(${p.r}, ${p.g}, ${p.b}, ${p.life / p.maxLife})`;
+        ctx.fillRect(Math.floor(p.x), Math.floor(p.y), p.size, p.size);
+      }
+    });
+    // Remove dead particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      if (particles[i].life <= 0) particles.splice(i, 1);
+    }
+  }
+
+  function spawnParticles(x, y, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: x + Math.random() * 40 - 20,
+        y: y + Math.random() * 20 - 10,
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 3 - 1,
+        life: 30 + Math.random() * 20,
+        maxLife: 50,
+        size: Math.random() * 3 + 2,
+        r: Math.random() > 0.5 ? 255 : 100,
+        g: Math.random() > 0.5 ? 255 : 200,
+        b: 50 + Math.floor(Math.random() * 200)
+      });
     }
   }
 
   function update() {
     frameCount++;
+    phaseTimer++;
 
-    if (isLogoReady) {
-      if (logoCloud.width === 0) {
-        const aspect = tintedLogoCanvas.width / tintedLogoCanvas.height;
-        logoCloud.width = (leftCharHeight + 60) / 2 * aspect * logoCloud.scale;
-      }
-      logoCloud.x -= logoCloud.speed;
-      if (logoCloud.x + logoCloud.width < -10) logoCloud.x = canvas.width + 10;
-    }
-
-    clouds.forEach(c => {
-      c.x -= c.speed;
-      if (c.x + c.width < -20) c.x = canvas.width + 20;
-    });
-
-    if (state === 'pause' || state === 'pause_mid' || state === 'stare') {
-      pauseTimer++;
-      let waitTime = 60;
-      if (state === 'pause_mid') waitTime = 40;
-      if (state === 'stare') waitTime = 50 + ADDED_STARE_PAUSE;
-
-      if (pauseTimer > waitTime) {
-        if (state === 'pause_mid') state = 'enter2';
-        else if (state === 'pause') state = 'chase';
-        else if (state === 'stare') state = 'runaway1';
-        stepTimer = 0;
-      }
-      return;
-    }
-
-    let currentStepInterval = (state === 'chase') ? 12 : 8;
     stepTimer++;
-    if (stepTimer >= currentStepInterval) {
+    if (stepTimer >= 8) {
       stepTimer = 0;
       animFrame = 1 - animFrame;
+    }
 
-      if (state === 'enter1') {
-        if (catX < catTargetX1) catX += 8;
-        if (mouseX > mouseTargetX1) mouseX -= 8;
-        if (catX >= catTargetX1 && mouseX <= mouseTargetX1) {
-          catX = catTargetX1; mouseX = mouseTargetX1;
-          state = 'pause_mid'; pauseTimer = 0; animFrame = 0;
+    switch (phase) {
+      case 'blackScreen':
+        // Fade in from black over 90 frames (1.5 sec)
+        fadeAlpha = Math.max(0, 1.0 - phaseTimer / 90);
+        if (phaseTimer > 100) {
+          phase = 'charsEnter';
+          phaseTimer = 0;
         }
-      } else if (state === 'enter2') {
-        if (catX < catTargetX2) catX += 8;
-        if (mouseX > mouseTargetX2) mouseX -= 8;
-        if (catX >= catTargetX2 && mouseX <= mouseTargetX2) {
-          catX = catTargetX2; mouseX = mouseTargetX2;
-          state = 'pause'; pauseTimer = 0; animFrame = 0;
+        break;
+
+      case 'charsEnter':
+        // Characters walk in
+        if (catX < catTargetX) catX += 3;
+        else catX = catTargetX;
+        if (mouseX > mouseTargetX) mouseX -= 3;
+        else mouseX = mouseTargetX;
+
+        if (catX >= catTargetX && mouseX <= mouseTargetX) {
+          if (phaseTimer > 10) {
+            phase = 'charsPause';
+            phaseTimer = 0;
+          }
         }
-      } else if (state === 'chase') {
-        catX += 8; mouseX += 4;
-        if (mouseX - catX < 70 || mouseX > 320) {
-          state = 'stare'; pauseTimer = 0; animFrame = 0; stepTimer = 0;
+        break;
+
+      case 'charsPause':
+        // Brief pause, characters face each other
+        if (phaseTimer > 40) {
+          phase = 'titleDrop';
+          phaseTimer = 0;
+          titleBounceVel = 0;
+          titleBouncing = true;
         }
-      } else if (state === 'runaway1') {
-        catX += 14; mouseX += 14;
-        if (catX > canvas.width + 100) {
-          state = 'runaway2'; catX = -120; mouseX = -40; stepTimer = 0;
+        break;
+
+      case 'titleDrop':
+        // Title drops from top with bounce
+        if (titleBouncing) {
+          titleBounceVel += 0.5;
+          titleY += titleBounceVel;
+          if (titleY >= titleTargetY) {
+            titleY = titleTargetY;
+            titleBounceVel = -titleBounceVel * 0.4;
+            if (Math.abs(titleBounceVel) < 1) {
+              titleBouncing = false;
+              titleY = titleTargetY;
+              // Spawn particles on landing
+              spawnParticles(CW / 2, titleTargetY + 25, 20);
+            }
+          }
         }
-      } else if (state === 'runaway2') {
-        catX += 14; mouseX += 14;
-        if (catX > canvas.width + 100) {
-          state = 'enter1'; catX = START_CAT_X; mouseX = START_MOUSE_X; stepTimer = 0;
+        if (!titleBouncing && phaseTimer > 60) {
+          phase = 'menuAppear';
+          phaseTimer = 0;
         }
-      }
+        break;
+
+      case 'menuAppear':
+        // Menu fades in
+        menuAlpha = Math.min(1, phaseTimer / 40);
+        cursorBlink++;
+        if (phaseTimer > 120) {
+          phase = 'cursorSelect';
+          phaseTimer = 0;
+        }
+        break;
+
+      case 'cursorSelect':
+        // Cursor blinks then selects
+        cursorBlink++;
+        if (phaseTimer > 60) {
+          phase = 'selectFlash';
+          phaseTimer = 0;
+          selectedItem = 0;
+          selectFlashCount = 0;
+        }
+        break;
+
+      case 'selectFlash':
+        // Flash the selected item
+        if (phaseTimer % 6 === 0) {
+          selectFlashCount++;
+        }
+        if (selectFlashCount > 8) {
+          // Spawn celebration particles
+          spawnParticles(CW / 2, 130, 30);
+          phase = 'fadeOut';
+          phaseTimer = 0;
+        }
+        break;
+
+      case 'fadeOut':
+        // Fade to white
+        whiteAlpha = Math.min(1, phaseTimer / 60);
+        if (phaseTimer > 120) {
+          // Reset and loop
+          phase = 'blackScreen';
+          phaseTimer = 0;
+          fadeAlpha = 1.0;
+          whiteAlpha = 0;
+          catX = -100;
+          mouseX = CW + 20;
+          titleY = -80;
+          menuAlpha = 0;
+          selectedItem = -1;
+          selectFlashCount = 0;
+          cursorBlink = 0;
+          particles.length = 0;
+        }
+        break;
     }
   }
 
   function draw() {
-    const palette = timePalettes[currentTime];
+    // Clear
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(0, 0, CW, CH);
 
-    // Sky
-    if (currentTime === 'dawn') {
-      const gradient = ctx.createLinearGradient(0, 0, 0, groundY);
-      gradient.addColorStop(0, palette.skyGradient.top);
-      gradient.addColorStop(1, palette.skyGradient.bottom);
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.fillStyle = palette.sky;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    // Stars (night only)
-    if (palette.isNight) {
-      ctx.fillStyle = '#FFFFFF';
-      stars.forEach(s => {
-        if (Math.random() > 0.1) ctx.fillRect(s.x, s.y, 2, 2);
-      });
-    }
-
-    // Sun / Moon
-    if (palette.isNight && isMoonReady) {
-      ctx.drawImage(moonCacheCanvas, palette.moonX, palette.moonY, moonImageSize, moonImageSize);
-    } else if (!palette.isNight) {
-      ctx.fillStyle = palette.sunColor;
-      const sunBodySize = 40;
-      ctx.fillRect(palette.sunX + (50 - sunBodySize) / 2, palette.sunY, sunBodySize, sunBodySize);
-      ctx.fillRect(palette.sunX, palette.sunY + (sunBodySize - 10) / 2, 50, 10);
-      ctx.fillRect(palette.sunX + (50 - 10) / 2, palette.sunY - (50 - sunBodySize) / 2, 10, 50);
-    }
-
-    // Clouds
-    const cloudColor = palette.isNight ? '#888888' : '#FFFFFF';
-    ctx.fillStyle = cloudColor;
-
-    if (isLogoReady) {
-      ctx.drawImage(tintedLogoCanvas, logoCloud.x, logoCloud.y, logoCloud.width, logoCloud.width / (tintedLogoCanvas.width / tintedLogoCanvas.height));
-    }
-
-    clouds.forEach(c => {
-      if (c.isCat) {
-        let cx = Math.floor(c.x);
-        let cy = Math.floor(c.y);
-        ctx.fillRect(cx, cy, 40, 16);
-        ctx.fillRect(cx + 4, cy - 6, 32, 6);
-        ctx.fillRect(cx + 6, cy - 12, 6, 6);
-        ctx.fillRect(cx + 28, cy - 12, 6, 6);
-        ctx.fillRect(cx + 40, cy + 4, 10, 6);
-        ctx.fillRect(cx + 46, cy - 2, 6, 6);
-      } else {
-        ctx.fillRect(Math.floor(c.x), Math.floor(c.y), Math.floor(c.width), 16);
-        ctx.fillRect(Math.floor(c.x) + 8, Math.floor(c.y) - 8, Math.floor(c.width) - 24, 8);
-        ctx.fillRect(Math.floor(c.x) + 16, Math.floor(c.y) + 16, Math.floor(c.width) - 24, 8);
-      }
-    });
-
-    // Ground
-    ctx.fillStyle = palette.groundBase;
-    ctx.fillRect(0, groundY - 5, canvas.width, canvas.height - (groundY - 5));
-    ctx.fillStyle = palette.groundPattern;
-    ctx.fillRect(0, groundY, canvas.width, 4);
-    ctx.fillRect(0, groundY + 10, canvas.width, 2);
-    ctx.fillStyle = palette.dirt;
-    ctx.fillRect(0, groundY + 16, canvas.width, canvas.height - (groundY + 16));
-
-    // Message window
-    const winWidth = 280;
-    const winHeight = 60;
-    const winX = (canvas.width - winWidth) / 2;
-    const winY = 20;
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    ctx.fillRect(winX, winY, winWidth, winHeight);
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(winX + 2, winY + 2, winWidth - 4, winHeight - 4);
-    ctx.lineWidth = 1;
-    ctx.strokeRect(winX + 6, winY + 6, winWidth - 12, winHeight - 12);
-
-    const customMessage = messageInput.value.trim();
-    if (customMessage) {
-      ctx.fillStyle = '#FFFFFF';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = '22px "DotGothic16", sans-serif';
-      ctx.fillText(customMessage, winX + winWidth / 2, winY + winHeight / 2 + 2, winWidth - 20);
-    }
+    // Background
+    drawBackground();
 
     // Characters
     const leftCharImg = animFrame === 0 ? images.left1 : images.left2;
     const rightCharImg = animFrame === 0 ? images.right1 : images.right2;
-    drawCharacter(leftCharImg, catX, groundY - leftCharHeight, leftCharHeight, false);
-    drawCharacter(rightCharImg, mouseX, groundY - rightCharHeight, rightCharHeight, !(state === 'runaway1' || state === 'runaway2'));
 
-    // Emotes
-    if (state === 'pause') {
-      drawEmote(catX, groundY - leftCharHeight, leftCharHeight, '!', true);
-      drawEmote(mouseX, groundY - rightCharHeight, rightCharHeight, '!', true);
-    } else if (state === 'stare') {
-      drawEmote(mouseX, groundY - rightCharHeight, rightCharHeight, 'sweat', false);
+    // Characters face each other
+    drawCharacter(leftCharImg, catX, groundY - leftCharHeight, leftCharHeight, false);
+    drawCharacter(rightCharImg, mouseX, groundY - rightCharHeight, rightCharHeight, true);
+
+    // Emotes when paused
+    if (phase === 'charsPause') {
+      // Exclamation marks
+      const flashVisible = Math.floor(frameCount / 8) % 2 === 0;
+      if (flashVisible) {
+        ctx.fillStyle = '#FF4444';
+        const ex = catX + leftCharHeight * 0.4;
+        ctx.fillRect(ex, groundY - leftCharHeight - 18, 4, 10);
+        ctx.fillRect(ex, groundY - leftCharHeight - 6, 4, 4);
+
+        const ex2 = mouseX + rightCharHeight * 0.3;
+        ctx.fillRect(ex2, groundY - rightCharHeight - 18, 4, 10);
+        ctx.fillRect(ex2, groundY - rightCharHeight - 6, 4, 4);
+      }
+    }
+
+    // Title logo
+    if (phase !== 'blackScreen' && phase !== 'charsEnter') {
+      drawTitleLogo();
+    }
+
+    // Menu
+    drawMenu();
+
+    // Particles
+    drawParticles();
+
+    // Black fade overlay (for intro)
+    if (fadeAlpha > 0) {
+      ctx.fillStyle = `rgba(0, 0, 0, ${fadeAlpha})`;
+      ctx.fillRect(0, 0, CW, CH);
+    }
+
+    // White fade overlay (for outro)
+    if (whiteAlpha > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${whiteAlpha})`;
+      ctx.fillRect(0, 0, CW, CH);
+    }
+
+    // Scanline effect (subtle CRT look)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+    for (let y = 0; y < CH; y += 3) {
+      ctx.fillRect(0, y, CW, 1);
     }
   }
 
