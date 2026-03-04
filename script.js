@@ -29,6 +29,9 @@
     isLogoReady = true;
   };
 
+  // Set crossOrigin for all images
+  Object.values(images).forEach(img => { img.crossOrigin = 'anonymous'; });
+
   images.left1.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/88b01ae-6deb-2436-d70b-707f3b24a4df__1.png";
   images.left2.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/4d20d-dbcb-c1a-c0e0-ca740e55d8c0__2.png";
   images.right1.src = "https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/48c5787-6528-52cc-e7e5-300b1f0fb628__2026-01-29_18.44.19-removebg-preview_1_.png";
@@ -107,17 +110,51 @@
   const particles = [];
 
   function drawCharacter(img, x, y, h, flipH) {
-    if (!img.complete) return;
-    const aspect = img.width / img.height;
-    const w = h * aspect;
+    if (img.complete && img.naturalWidth > 0) {
+      const aspect = img.width / img.height;
+      const w = h * aspect;
+      ctx.save();
+      if (flipH) {
+        ctx.translate(Math.floor(x) + w, Math.floor(y));
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, w, h);
+      } else {
+        ctx.drawImage(img, Math.floor(x), Math.floor(y), w, h);
+      }
+      ctx.restore();
+    } else {
+      // Fallback pixel character
+      drawFallbackChar(x, y, h, flipH);
+    }
+  }
+
+  function drawFallbackChar(x, y, h, flipH) {
+    const px = Math.floor(x);
+    const py = Math.floor(y);
+    const s = Math.floor(h / 10); // pixel scale
     ctx.save();
     if (flipH) {
-      ctx.translate(Math.floor(x) + w, Math.floor(y));
+      ctx.translate(px + s * 8, py);
       ctx.scale(-1, 1);
-      ctx.drawImage(img, 0, 0, w, h);
+      ctx.translate(0, 0);
     } else {
-      ctx.drawImage(img, Math.floor(x), Math.floor(y), w, h);
+      ctx.translate(px, py);
     }
+    // Head
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(s * 2, 0, s * 4, s * 3);
+    // Eyes
+    ctx.fillStyle = '#000';
+    ctx.fillRect(s * 3, s, s, s);
+    ctx.fillRect(s * 5, s, s, s);
+    // Body
+    ctx.fillStyle = '#4488FF';
+    ctx.fillRect(s * 1, s * 3, s * 6, s * 4);
+    // Legs
+    ctx.fillStyle = '#FFD700';
+    const legOffset = animFrame === 0 ? 0 : s;
+    ctx.fillRect(s * 2 - legOffset, s * 7, s * 2, s * 3);
+    ctx.fillRect(s * 4 + legOffset, s * 7, s * 2, s * 3);
     ctx.restore();
   }
 
@@ -180,17 +217,23 @@
   }
 
   function drawTitleLogo() {
-    if (!isLogoReady) return;
-    const logoH = 50;
-    const aspect = tintedLogoCanvas.width / tintedLogoCanvas.height;
-    const logoW = logoH * aspect;
-    const logoX = (CW - logoW) / 2;
+    if (isLogoReady) {
+      const logoH = 50;
+      const aspect = tintedLogoCanvas.width / tintedLogoCanvas.height;
+      const logoW = logoH * aspect;
+      const logoX = (CW - logoW) / 2;
 
-    // Glow effect behind logo
-    ctx.shadowColor = '#4488ff';
-    ctx.shadowBlur = 15 + Math.sin(frameCount * 0.05) * 5;
-    ctx.drawImage(tintedLogoCanvas, logoX, titleY, logoW, logoH);
-    ctx.shadowBlur = 0;
+      ctx.shadowColor = '#4488ff';
+      ctx.shadowBlur = 15 + Math.sin(frameCount * 0.05) * 5;
+      ctx.drawImage(tintedLogoCanvas, logoX, titleY, logoW, logoH);
+      ctx.shadowBlur = 0;
+    } else {
+      // Fallback: draw title as text
+      ctx.shadowColor = '#4488ff';
+      ctx.shadowBlur = 15 + Math.sin(frameCount * 0.05) * 5;
+      drawPixelText('PIXEL ADVENTURE', CW / 2, titleY + 25, 22, '#FFFFFF', 'center');
+      ctx.shadowBlur = 0;
+    }
   }
 
   function drawMenu() {
