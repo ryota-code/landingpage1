@@ -31,7 +31,7 @@
     { name: 'gather',   dur: 360 },
     { name: 'campfire', dur: 360 },
     { name: 'dawn',     dur: 360 },
-    { name: 'credits',  dur: 300 },
+    { name: 'credits',  dur: 600 },
   ];
   let sceneIdx = 0;
   let sceneTimer = 0;
@@ -665,15 +665,15 @@
       }
     }
 
-    /* credits */
+    /* credits - YouTube end screen style */
     else if(name==='credits'){
-      catX=CW/2-60;mouseX=CW/2-10;rangeX=CW/2+30;mentalX=CW/2+70;trendX=CW/2+110;
-      catY=Math.abs(Math.sin(t*0.12))*6;mouseY=Math.abs(Math.sin(t*0.12+1))*5;
-      rangeY=Math.abs(Math.sin(t*0.12+2))*6;mentalY=Math.abs(Math.sin(t*0.12+3))*5;
-      trendY=Math.sin(t*0.06)*5;
-      catAngle=Math.sin(t*0.08)*0.1;mouseAngle=-Math.sin(t*0.08)*0.08;
-      rangeAngle=Math.sin(t*0.08+1)*0.1;mentalAngle=-Math.sin(t*0.08+1)*0.08;
-      if(t%12===0)spawnP(Math.random()*CW,Math.random()*CH*0.5,2,255,215,0);
+      // Cat in center bottom, bouncing happily
+      catX=CW/2-30;mouseX=CW/2+20;
+      catY=Math.abs(Math.sin(t*0.1))*8;mouseY=Math.abs(Math.sin(t*0.1+1))*6;
+      catAngle=Math.sin(t*0.06)*0.08;mouseAngle=-Math.sin(t*0.06)*0.06;
+      // No other characters in this scene (clean end screen)
+      rangeX=-999;mentalX=-999;trendX=-999;
+      if(t%15===0)spawnP(CW/2+Math.random()*60-30,gl-50,2,255,215,0,-1);
     }
   }
 
@@ -831,52 +831,48 @@
       }
     }
 
-    /* credits */
+    /* credits - YouTube end screen style */
     else if(name==='credits'){
-      // Starry gradient
+      // Warm cream/yellow background like the screenshot
       const sg=ctx.createLinearGradient(0,0,0,CH);
-      sg.addColorStop(0,'#0a0520');sg.addColorStop(0.5,'#1a1050');sg.addColorStop(1,'#0a0a20');
+      sg.addColorStop(0,'#F5EDD0');sg.addColorStop(0.5,'#F0E8C0');sg.addColorStop(1,'#E8DFB0');
       ctx.fillStyle=sg;ctx.fillRect(0,0,CW,CH);
-      starField.forEach(s=>{
-        const tw=Math.sin(f*s.sp+s.x)*0.5+0.5;
-        ctx.fillStyle=`rgba(255,255,220,${tw*0.8})`;ctx.fillRect(~~s.x,~~s.y,~~s.s,~~s.s);
-      });
 
-      // Title
-      ctx.save();ctx.globalAlpha=Math.min(1,t/60);
-      ctx.shadowColor='#FFD700';ctx.shadowBlur=15+Math.sin(f*0.04)*5;
-      px('にゃんこ先生のFX講座',CW/2,50,26,'#FFD700');ctx.shadowBlur=0;
-      ctx.restore();
+      // Trees background (like the screenshot)
+      drawEndScreenTrees(gl);
 
-      // Subtitle
-      if(t>40){
-        ctx.save();ctx.globalAlpha=Math.min(1,(t-40)/40);
-        px('〜 ぼうけんは つづく 〜',CW/2,80,12,'#FFF');
-        ctx.restore();
-      }
+      // Ground
+      ctx.fillStyle='#C8D8A0';ctx.fillRect(0,gl,CW,CH-gl);
+      ctx.fillStyle='#B0C890';ctx.fillRect(0,gl,CW,3);
 
-      // All characters lined up
-      const allGl=210;
+      // Small animals on the ground
+      drawEndScreenAnimals(gl);
+
+      // Characters in center
+      const allGl=gl;
       drawShadow(catX,allGl,catH2);drawShadow(mouseX,allGl,mouseH2);
       drawChar(lImg,catX,allGl-catH2-Math.max(0,catY),catH2,false,catAngle);
       drawChar(rImg,mouseX,allGl-mouseH2-Math.max(0,mouseY),mouseH2,true,mouseAngle);
-      drawRangeFriendly(rangeX,allGl-Math.max(0,rangeY),rangeAngle);
-      drawMentalFriendly(mentalX,allGl-Math.max(0,mentalY),mentalAngle);
-      drawTrendFriendly(trendX,allGl-Math.max(0,trendY)-15,trendAngle);
 
-      // Hand links
-      if(t>80){
-        const hy=allGl-15;
-        drawHandLink(catX+45,hy-Math.max(0,catY),mouseX+5,hy-Math.max(0,mouseY),'rgba(255,215,0,0.4)');
-        drawHandLink(mouseX+25,hy-Math.max(0,mouseY),rangeX-5,hy-Math.max(0,rangeY),'rgba(255,215,0,0.4)');
-        drawHandLink(rangeX+15,hy-Math.max(0,rangeY),mentalX-10,hy-Math.max(0,mentalY),'rgba(200,150,255,0.4)');
-        drawHandLink(mentalX+15,hy-Math.max(0,mentalY),trendX-10,hy-Math.max(0,trendY)-15,'rgba(255,220,100,0.4)');
+      // "チャンネル登録よろしくな！" text in center
+      if(t>20){
+        ctx.save();ctx.globalAlpha=Math.min(1,(t-20)/30);
+        px('チャンネル登録',CW/2,gl-catH2-30,18,'#2D7D2D');
+        px('よろしくな！',CW/2,gl-catH2-10,18,'#2D7D2D');
+        ctx.restore();
       }
 
-      // Subscribe
-      if(t>150){
-        ctx.save();ctx.globalAlpha=Math.min(1,(t-150)/30)*(0.6+Math.sin(f*0.08)*0.4);
-        px('チャンネル登録よろしくね！',CW/2,248,14,'#FF6B6B');
+      // Video recommendation cards (YouTube end screen style)
+      if(t>40){
+        const cardAlpha=Math.min(1,(t-40)/30);
+        ctx.save();ctx.globalAlpha=cardAlpha;
+
+        // Left card - video recommendation
+        drawVideoCard(18, 22, 160, 90, 'おすすめ動画', '#8855CC', '#6633AA');
+
+        // Right card - video recommendation / playlist
+        drawVideoCard(CW-178, 22, 160, 90, 'おすすめ動画', '#DD6622', '#BB4400');
+
         ctx.restore();
       }
     }
@@ -891,6 +887,102 @@
     // Scanlines
     ctx.fillStyle='rgba(0,0,0,0.04)';
     for(let y=0;y<CH;y+=3)ctx.fillRect(0,y,CW,1);
+  }
+
+  /* ── End screen helpers ── */
+  function drawEndScreenTrees(gl){
+    // Far trees (dark green, small)
+    ctx.fillStyle='#5A8A3A';
+    for(let i=0;i<24;i++){
+      const tx=i*22-5+Math.sin(i*1.3)*8;
+      const th=30+Math.sin(i*0.7)*10;
+      // Triangle tree
+      ctx.beginPath();ctx.moveTo(tx,gl-th);ctx.lineTo(tx-8,gl);ctx.lineTo(tx+8,gl);ctx.closePath();ctx.fill();
+    }
+    // Near trees (lighter, bigger)
+    ctx.fillStyle='#6BA04A';
+    for(let i=0;i<16;i++){
+      const tx=i*32+10+Math.sin(i*2.1)*12;
+      const th=40+Math.sin(i*0.9)*12;
+      // Trunk
+      ctx.fillStyle='#886644';ctx.fillRect(tx-2,gl-12,4,12);
+      // Leaves (layered triangles)
+      ctx.fillStyle='#6BA04A';
+      ctx.beginPath();ctx.moveTo(tx,gl-th);ctx.lineTo(tx-12,gl-12);ctx.lineTo(tx+12,gl-12);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#5A9040';
+      ctx.beginPath();ctx.moveTo(tx,gl-th+8);ctx.lineTo(tx-10,gl-8);ctx.lineTo(tx+10,gl-8);ctx.closePath();ctx.fill();
+    }
+  }
+
+  function drawEndScreenAnimals(gl){
+    const groundY=gl+8;
+    // Turtle (left side)
+    const tx=50+Math.sin(f*0.01)*3;
+    ctx.fillStyle='#557744';ctx.fillRect(tx,groundY-8,14,8); // shell
+    ctx.fillStyle='#668855';ctx.fillRect(tx+1,groundY-10,12,4); // shell top
+    ctx.fillStyle='#88AA66';ctx.fillRect(tx+3,groundY-9,3,2);ctx.fillRect(tx+8,groundY-9,3,2); // pattern
+    ctx.fillStyle='#779955';ctx.fillRect(tx-3,groundY-4,4,5); // head
+    ctx.fillRect(tx+13,groundY-2,3,3); // tail
+    ctx.fillStyle='#222';ctx.fillRect(tx-2,groundY-3,1,1); // eye
+    ctx.fillRect(tx,groundY,3,3);ctx.fillRect(tx+10,groundY,3,3); // legs
+
+    // Bird (center-left)
+    const bx=140,by=groundY-5;
+    ctx.fillStyle='#6688AA'; // body
+    ctx.fillRect(bx,by,8,7);
+    ctx.fillStyle='#7799BB';ctx.fillRect(bx+2,by-3,6,4); // head
+    ctx.fillStyle='#FFAA44';ctx.fillRect(bx+7,by-2,3,2); // beak
+    ctx.fillStyle='#222';ctx.fillRect(bx+5,by-2,1,1); // eye
+    ctx.fillRect(bx+1,by+7,2,3);ctx.fillRect(bx+5,by+7,2,3); // legs
+    // Wing flap
+    if(f%40<20){ctx.fillStyle='#5577AA';ctx.fillRect(bx-2,by+1,3,4);}
+    else{ctx.fillStyle='#5577AA';ctx.fillRect(bx-2,by-2,3,4);}
+
+    // Crocodile (right side)
+    const cx=CW-110+Math.sin(f*0.008)*2,cy=groundY-4;
+    ctx.fillStyle='#448844'; // body
+    ctx.fillRect(cx,cy,28,6);
+    ctx.fillStyle='#336633';ctx.fillRect(cx+2,cy-2,24,3); // back ridges
+    ctx.fillStyle='#559955';
+    ctx.fillRect(cx+22,cy-4,10,5); // head
+    ctx.fillStyle='#E8E8CC';ctx.fillRect(cx+28,cy-2,5,2); // snout
+    ctx.fillStyle='#222';ctx.fillRect(cx+27,cy-3,1,1); // eye
+    ctx.fillRect(cx-4,cy+3,6,2); // tail
+    ctx.fillRect(cx+5,cy+6,3,3);ctx.fillRect(cx+15,cy+6,3,3); // legs
+    // Teeth
+    ctx.fillStyle='#FFF';
+    ctx.fillRect(cx+29,cy,1,1);ctx.fillRect(cx+31,cy,1,1);
+  }
+
+  function drawVideoCard(x,y,w,h,label,color1,color2){
+    // Card background with rounded-corner feel
+    ctx.fillStyle='rgba(0,0,0,0.12)';
+    ctx.fillRect(x+2,y+2,w,h); // shadow
+
+    // Card bg
+    const cg=ctx.createLinearGradient(x,y,x,y+h);
+    cg.addColorStop(0,color1);cg.addColorStop(1,color2);
+    ctx.fillStyle=cg;
+    ctx.fillRect(x,y,w,h);
+
+    // Inner border
+    ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=1;
+    ctx.strokeRect(x+2,y+2,w-4,h-4);
+
+    // Play button triangle
+    const pcx=x+w/2, pcy=y+h/2-5;
+    ctx.fillStyle='rgba(255,255,255,0.8)';
+    ctx.beginPath();ctx.moveTo(pcx-8,pcy-10);ctx.lineTo(pcx-8,pcy+10);ctx.lineTo(pcx+10,pcy);ctx.closePath();ctx.fill();
+
+    // Label at bottom
+    ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(x,y+h-18,w,18);
+    ctx.fillStyle='#FFF';ctx.font='10px "DotGothic16",sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(label,x+w/2,y+h-9);
+
+    // Pulsing border to attract attention
+    const pulse=Math.sin(f*0.06)*0.3+0.7;
+    ctx.strokeStyle=`rgba(255,255,255,${pulse*0.5})`;ctx.lineWidth=2;
+    ctx.strokeRect(x-1,y-1,w+2,h+2);
   }
 
   function drawSceneTitle(text,color){
