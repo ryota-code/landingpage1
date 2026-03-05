@@ -85,86 +85,6 @@
     ctx.drawImage(img,0,0,w,h);ctx.restore();
   }
 
-  /* ── Front-facing cat (にゃんこ先生) with waving paw ── */
-  function drawCatFront(cx,cy,scale,waveAngle){
-    ctx.save();
-    ctx.translate(cx,cy);
-    const s=scale;
-
-    // Body
-    ctx.fillStyle='#F5A623';
-    ctx.beginPath();ctx.ellipse(0,0,18*s,22*s,0,0,Math.PI*2);ctx.fill();
-    // Belly
-    ctx.fillStyle='#FFF5E0';
-    ctx.beginPath();ctx.ellipse(0,6*s,12*s,14*s,0,0,Math.PI*2);ctx.fill();
-
-    // Head
-    ctx.fillStyle='#F5A623';
-    ctx.beginPath();ctx.ellipse(0,-28*s,20*s,18*s,0,0,Math.PI*2);ctx.fill();
-    // Face white area
-    ctx.fillStyle='#FFF5E0';
-    ctx.beginPath();ctx.ellipse(0,-24*s,14*s,12*s,0,0,Math.PI*2);ctx.fill();
-
-    // Ears
-    ctx.fillStyle='#F5A623';
-    ctx.beginPath();ctx.moveTo(-16*s,-42*s);ctx.lineTo(-8*s,-34*s);ctx.lineTo(-20*s,-32*s);ctx.closePath();ctx.fill();
-    ctx.beginPath();ctx.moveTo(16*s,-42*s);ctx.lineTo(8*s,-34*s);ctx.lineTo(20*s,-32*s);ctx.closePath();ctx.fill();
-    // Inner ears
-    ctx.fillStyle='#FFB8C6';
-    ctx.beginPath();ctx.moveTo(-15*s,-40*s);ctx.lineTo(-10*s,-35*s);ctx.lineTo(-18*s,-33*s);ctx.closePath();ctx.fill();
-    ctx.beginPath();ctx.moveTo(15*s,-40*s);ctx.lineTo(10*s,-35*s);ctx.lineTo(18*s,-33*s);ctx.closePath();ctx.fill();
-
-    // Eyes
-    ctx.fillStyle='#333';
-    ctx.beginPath();ctx.ellipse(-7*s,-28*s,3*s,3.5*s,0,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.ellipse(7*s,-28*s,3*s,3.5*s,0,0,Math.PI*2);ctx.fill();
-    // Eye highlights
-    ctx.fillStyle='#FFF';
-    ctx.beginPath();ctx.arc(-6*s,-29*s,1.2*s,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(8*s,-29*s,1.2*s,0,Math.PI*2);ctx.fill();
-
-    // Nose
-    ctx.fillStyle='#FF8899';
-    ctx.beginPath();ctx.moveTo(0,-23*s);ctx.lineTo(-2*s,-21*s);ctx.lineTo(2*s,-21*s);ctx.closePath();ctx.fill();
-
-    // Mouth (smiling)
-    ctx.strokeStyle='#333';ctx.lineWidth=1.2*s;ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(-4*s,-20*s);ctx.quadraticCurveTo(0,-17*s,4*s,-20*s);ctx.stroke();
-
-    // Whiskers
-    ctx.strokeStyle='#666';ctx.lineWidth=0.8*s;
-    ctx.beginPath();ctx.moveTo(-8*s,-24*s);ctx.lineTo(-22*s,-26*s);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(-8*s,-22*s);ctx.lineTo(-22*s,-22*s);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(8*s,-24*s);ctx.lineTo(22*s,-26*s);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(8*s,-22*s);ctx.lineTo(22*s,-22*s);ctx.stroke();
-
-    // Left arm (static, resting)
-    ctx.fillStyle='#F5A623';
-    ctx.beginPath();ctx.ellipse(-16*s,4*s,5*s,8*s,0.3,0,Math.PI*2);ctx.fill();
-    // Left paw
-    ctx.fillStyle='#FFF5E0';
-    ctx.beginPath();ctx.arc(-18*s,10*s,4*s,0,Math.PI*2);ctx.fill();
-
-    // Right arm (waving!) - rotates around shoulder
-    ctx.save();
-    ctx.translate(16*s,-6*s); // shoulder position
-    ctx.rotate(waveAngle);
-    ctx.fillStyle='#F5A623';
-    ctx.beginPath();ctx.ellipse(0,-10*s,5*s,10*s,0,0,Math.PI*2);ctx.fill();
-    // Right paw
-    ctx.fillStyle='#FFF5E0';
-    ctx.beginPath();ctx.arc(0,-18*s,4.5*s,0,Math.PI*2);ctx.fill();
-    ctx.restore();
-
-    // Stripes on forehead
-    ctx.strokeStyle='#D4880E';ctx.lineWidth=1.5*s;
-    ctx.beginPath();ctx.moveTo(-4*s,-38*s);ctx.lineTo(-4*s,-33*s);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,-40*s);ctx.lineTo(0,-34*s);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(4*s,-38*s);ctx.lineTo(4*s,-33*s);ctx.stroke();
-
-    ctx.restore();
-  }
-
   function spawnP(x,y,n,r,g,b,vy0){
     for(let i=0;i<n;i++)
       particles.push({x:x+Math.random()*20-10,y:y+Math.random()*10-5,
@@ -241,22 +161,18 @@
     drawBG();
 
     // Characters in center-bottom
-    const catCenterX=CW/2-25, mouseX=CW/2+35;
-    const catBounce=Math.abs(Math.sin(f*0.06))*5;
-    const mouseY=Math.abs(Math.sin(f*0.06+1))*6;
+    const catX=CW/2-30, mouseX=CW/2+20;
+    const catY=Math.abs(Math.sin(f*0.1))*8;
+    const mouseY=Math.abs(Math.sin(f*0.1+1))*6;
+    const lImg=animFrame===0?images.l1:images.l2;
     const rImg=animFrame===0?images.r1:images.r2;
-
-    // Wave angle: smooth back-and-forth wave
-    const waveAngle=-0.8+Math.sin(f*0.12)*0.6;
 
     // Shadows
     ctx.fillStyle='rgba(0,0,0,0.12)';
-    ctx.beginPath();ctx.ellipse(catCenterX,gl,18,3,0,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(catX+catH*0.35,gl,catH*0.3,3,0,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.ellipse(mouseX+mouseH*0.35,gl,mouseH*0.3,2,0,0,Math.PI*2);ctx.fill();
 
-    // Cat (front-facing, waving)
-    drawCatFront(catCenterX,gl-10-catBounce,1.3,waveAngle);
-    // Mouse (side-view as before)
+    drawChar(lImg,catX,gl-catH-catY,catH,false);
     drawChar(rImg,mouseX,gl-mouseH-mouseY,mouseH,true);
 
     // "チャンネル登録よろしくな！" - large, high-visibility banner
