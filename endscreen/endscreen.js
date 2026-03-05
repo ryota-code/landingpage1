@@ -175,11 +175,29 @@
     drawChar(lImg,catX,gl-catH-catY,catH,false);
     drawChar(rImg,mouseX,gl-mouseH-mouseY,mouseH,true);
 
-    // "チャンネル登録よろしくな！" - positioned BELOW the characters, above the ground area
+    // "チャンネル登録よろしくな！" - large, high-visibility banner
     const textAlpha=Math.min(1,f/60);
-    const textPulse=0.7+Math.sin(f*0.06)*0.3;
-    ctx.save();ctx.globalAlpha=textAlpha*textPulse;
-    px('チャンネル登録よろしくな！',CW/2,gl+30,16,'#2D7D2D');
+    ctx.save();ctx.globalAlpha=textAlpha;
+    // Background banner
+    const bannerY=gl+10, bannerH=42;
+    const bannerGrad=ctx.createLinearGradient(0,bannerY,0,bannerY+bannerH);
+    bannerGrad.addColorStop(0,'rgba(220,40,40,0.92)');bannerGrad.addColorStop(1,'rgba(180,20,20,0.92)');
+    ctx.fillStyle=bannerGrad;
+    ctx.fillRect(CW/2-180,bannerY,360,bannerH);
+    // Banner border highlight
+    ctx.strokeStyle='#FFD700';ctx.lineWidth=2;
+    ctx.strokeRect(CW/2-180,bannerY,360,bannerH);
+    // Pulsing glow
+    const glowPulse=Math.sin(f*0.08)*0.4+0.6;
+    ctx.shadowColor='#FFD700';ctx.shadowBlur=12*glowPulse;
+    // Text
+    ctx.font='bold 22px "DotGothic16",sans-serif';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillStyle='#000';
+    for(let ox=-2;ox<=2;ox++)for(let oy=-2;oy<=2;oy++)if(ox||oy)ctx.fillText('チャンネル登録よろしくな！',CW/2+ox,bannerY+bannerH/2+oy);
+    ctx.fillStyle='#FFFFFF';
+    ctx.fillText('チャンネル登録よろしくな！',CW/2,bannerY+bannerH/2);
+    ctx.shadowBlur=0;
     ctx.restore();
 
     // Video cards (top-left & top-right) - positioned clearly above characters
