@@ -77,11 +77,6 @@
     const textLeft = CW / 2 - textW / 2;
     const textRight = CW / 2 + textW / 2;
 
-    // Horizontal lines above and below (Nintendo logo style)
-    ctx.fillStyle = LOGO_COLOR;
-    ctx.fillRect(textLeft - 4, centerY - 12, textW + 8, 2);
-    ctx.fillRect(textLeft - 4, centerY + 10, textW + 8, 2);
-
     // Text
     ctx.fillStyle = LOGO_COLOR;
     ctx.fillText(text, CW / 2, centerY);
