@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>にゃんこ先生 VTuber</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #00ff00; /* OBS chroma key green */
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    body.transparent-bg { background: transparent; }
+    canvas { display: block; }
+    #controls {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      z-index: 100;
+      font-size: 14px;
+      max-width: 300px;
+    }
+    #controls.hidden { display: none; }
+    #controls button {
+      background: #4a90d9;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px 5px 5px 0;
+      font-size: 14px;
+    }
+    #controls button:hover { background: #357abd; }
+    #controls button.active { background: #2ecc71; }
+    #controls label { display: block; margin: 8px 0 4px; }
+    #controls input[type="range"] { width: 100%; }
+    #volumeMeter {
+      width: 100%;
+      height: 10px;
+      background: #333;
+      border-radius: 5px;
+      margin: 8px 0;
+      overflow: hidden;
+    }
+    #volumeBar {
+      height: 100%;
+      width: 0%;
+      background: #2ecc71;
+      transition: width 0.05s;
+    }
+    #status { color: #ff6b6b; margin-top: 8px; }
+    #toggleControls {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 101;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <button id="toggleControls" onclick="togglePanel()">設定表示/非表示</button>
+  <div id="controls">
+    <h3>にゃんこ先生 VTuber</h3>
+    <button id="startBtn" onclick="startMic()">マイク開始</button>
+    <button id="bgBtn" onclick="toggleBg()">背景: グリーン</button>
+    <div id="status"></div>
+    <div id="volumeMeter"><div id="volumeBar"></div></div>
+
+    <label>マイク感度</label>
+    <input type="range" id="sensitivity" min="1" max="100" value="30">
+
+    <label>まばたき頻度 (秒)</label>
+    <input type="range" id="blinkRate" min="1" max="10" value="4" step="0.5">
+
+    <label>キャラ位置 X</label>
+    <input type="range" id="posX" min="0" max="100" value="50">
+
+    <label>キャラ位置 Y</label>
+    <input type="range" id="posY" min="0" max="100" value="50">
+
+    <label>キャラサイズ</label>
+    <input type="range" id="charScale" min="30" max="200" value="100">
+
+    <p style="margin-top:10px;font-size:11px;color:#aaa;">
+      OBS → ソース → ブラウザ → このページのURL<br>
+      背景を「透明」にしてクロマキー不要に
+    </p>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Canvas size
+    canvas.width = 800;
+    canvas.height = 800;
+
+    // State
+    let micActive = false;
+    let audioCtx, analyser, micStream;
+    let volume = 0;
+    let mouthOpen = 0; // 0 to 1
+    let greenBg = true;
+
+    // Blink state
+    let blinkState = 0; // 0=open, 1=closing, 2=closed, 3=opening
+    let blinkTimer = 0;
+    let lastBlinkTime = 0;
+
+    // Character image
+    const catImg = new Image();
+    catImg.crossOrigin = 'anonymous';
+    catImg.src = 'https://kajabi-storefronts-production.kajabi-cdn.com/kajabi-storefronts-production/file-uploads/themes/2164865391/settings_images/68c0df3-1342-bf6e-bae8-03a7f1d43ffb__-removebg-preview.png';
+
+    catImg.onload = () => {
+      document.getElementById('status').textContent = '画像読み込み完了';
+      document.getElementById('status').style.color = '#2ecc71';
+    };
+    catImg.onerror = () => {
+      document.getElementById('status').textContent = '画像読み込みエラー - ローカル画像を使用';
+      document.getElementById('status').style.color = '#ff6b6b';
+    };
+
+    // Mic setup
+    async function startMic() {
+      if (micActive) {
+        stopMic();
+        return;
+      }
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioCtx = new AudioContext();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.5;
+        const source = audioCtx.createMediaStreamSource(micStream);
+        source.connect(analyser);
+        micActive = true;
+        document.getElementById('startBtn').textContent = 'マイク停止';
+        document.getElementById('startBtn').classList.add('active');
+        document.getElementById('status').textContent = 'マイク接続中';
+        document.getElementById('status').style.color = '#2ecc71';
+      } catch (e) {
+        document.getElementById('status').textContent = 'マイクエラー: ' + e.message;
+      }
+    }
+
+    function stopMic() {
+      if (micStream) micStream.getTracks().forEach(t => t.stop());
+      if (audioCtx) audioCtx.close();
+      micActive = false;
+      volume = 0;
+      mouthOpen = 0;
+      document.getElementById('startBtn').textContent = 'マイク開始';
+      document.getElementById('startBtn').classList.remove('active');
+      document.getElementById('status').textContent = 'マイク停止';
+      document.getElementById('status').style.color = '#ff6b6b';
+    }
+
+    function toggleBg() {
+      greenBg = !greenBg;
+      document.body.classList.toggle('transparent-bg', !greenBg);
+      document.getElementById('bgBtn').textContent = greenBg ? '背景: グリーン' : '背景: 透明';
+    }
+
+    function togglePanel() {
+      document.getElementById('controls').classList.toggle('hidden');
+    }
+
+    // Analyze audio
+    function updateAudio() {
+      if (!micActive || !analyser) return;
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(data);
+
+      // Calculate average volume
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += data[i];
+      const avg = sum / data.length;
+
+      const sensitivity = document.getElementById('sensitivity').value / 100;
+      volume = Math.min(1, (avg / 128) * sensitivity * 3);
+
+      // Smooth mouth movement
+      const targetMouth = volume > 0.05 ? Math.min(1, volume * 2) : 0;
+      mouthOpen += (targetMouth - mouthOpen) * 0.3;
+
+      // Volume meter
+      document.getElementById('volumeBar').style.width = (volume * 100) + '%';
+    }
+
+    // Blink logic
+    function updateBlink(now) {
+      const blinkRate = parseFloat(document.getElementById('blinkRate').value) * 1000;
+      const blinkDuration = 150; // ms
+
+      if (blinkState === 0) {
+        if (now - lastBlinkTime > blinkRate + Math.random() * 2000) {
+          blinkState = 1;
+          blinkTimer = now;
+          lastBlinkTime = now;
+        }
+      } else if (blinkState === 1) {
+        if (now - blinkTimer > blinkDuration / 3) {
+          blinkState = 2;
+          blinkTimer = now;
+        }
+      } else if (blinkState === 2) {
+        if (now - blinkTimer > blinkDuration / 3) {
+          blinkState = 3;
+          blinkTimer = now;
+        }
+      } else if (blinkState === 3) {
+        if (now - blinkTimer > blinkDuration / 3) {
+          blinkState = 0;
+        }
+      }
+    }
+
+    function getBlinkAmount() {
+      // Returns 0 (open) to 1 (closed)
+      if (blinkState === 0) return 0;
+      if (blinkState === 1) return 0.5;
+      if (blinkState === 2) return 1;
+      if (blinkState === 3) return 0.5;
+      return 0;
+    }
+
+    // Draw character
+    function draw(now) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const posX = (document.getElementById('posX').value / 100) * canvas.width;
+      const posY = (document.getElementById('posY').value / 100) * canvas.height;
+      const scale = document.getElementById('charScale').value / 100;
+
+      // Subtle breathing / idle animation
+      const breathe = Math.sin(now / 1000) * 2;
+      const sway = Math.sin(now / 2000) * 1.5;
+
+      ctx.save();
+      ctx.translate(posX + sway, posY + breathe);
+
+      // Draw base character
+      if (catImg.complete && catImg.naturalWidth) {
+        const drawH = 500 * scale;
+        const drawW = drawH * (catImg.naturalWidth / catImg.naturalHeight);
+        ctx.drawImage(catImg, -drawW / 2, -drawH / 2, drawW, drawH);
+
+        // Eye and mouth overlay positions (relative to image center)
+        // These are approximate - adjust based on the actual cat image
+        const eyeY = -drawH * 0.12;
+        const leftEyeX = -drawW * 0.12;
+        const rightEyeX = drawW * 0.12;
+        const eyeW = drawW * 0.08;
+        const eyeH = drawH * 0.04;
+        const mouthY = drawH * 0.02;
+        const mouthW = drawW * 0.1;
+
+        // Draw eye blinks
+        const blinkAmt = getBlinkAmount();
+        if (blinkAmt > 0) {
+          ctx.fillStyle = '#f5deb3'; // Skin/fur color - adjust to match
+          // Left eye blink
+          ctx.beginPath();
+          ctx.ellipse(leftEyeX, eyeY, eyeW, eyeH * blinkAmt, 0, 0, Math.PI * 2);
+          ctx.fill();
+          // Right eye blink
+          ctx.beginPath();
+          ctx.ellipse(rightEyeX, eyeY, eyeW, eyeH * blinkAmt, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Draw mouth animation
+        if (mouthOpen > 0.05) {
+          // Open mouth overlay
+          const mouthOpenH = drawH * 0.04 * mouthOpen;
+
+          // Dark mouth interior
+          ctx.fillStyle = '#2d1a1a';
+          ctx.beginPath();
+          ctx.ellipse(0, mouthY + mouthOpenH * 0.3, mouthW * 0.6, mouthOpenH, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Tongue (when mouth is wide open)
+          if (mouthOpen > 0.5) {
+            ctx.fillStyle = '#e87878';
+            ctx.beginPath();
+            ctx.ellipse(0, mouthY + mouthOpenH * 0.6, mouthW * 0.3, mouthOpenH * 0.4, 0, 0, Math.PI);
+            ctx.fill();
+          }
+        }
+      } else {
+        // Fallback: draw a simple cat face if image isn't loaded
+        drawFallbackCat(scale, now);
+      }
+
+      ctx.restore();
+    }
+
+    // Fallback cat drawing when image fails to load
+    function drawFallbackCat(scale, now) {
+      const s = 200 * scale;
+      const blinkAmt = getBlinkAmount();
+
+      // Head
+      ctx.fillStyle = '#f4a460';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ears
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.35, -s * 0.35);
+      ctx.lineTo(-s * 0.15, -s * 0.6);
+      ctx.lineTo(s * 0.05, -s * 0.35);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(s * 0.35, -s * 0.35);
+      ctx.lineTo(s * 0.15, -s * 0.6);
+      ctx.lineTo(-s * 0.05, -s * 0.35);
+      ctx.fill();
+
+      // Inner ears
+      ctx.fillStyle = '#ffb6c1';
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.28, -s * 0.35);
+      ctx.lineTo(-s * 0.15, -s * 0.52);
+      ctx.lineTo(-s * 0.02, -s * 0.35);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(s * 0.28, -s * 0.35);
+      ctx.lineTo(s * 0.15, -s * 0.52);
+      ctx.lineTo(s * 0.02, -s * 0.35);
+      ctx.fill();
+
+      // Eyes
+      const eyeH = s * 0.08 * (1 - blinkAmt);
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.ellipse(-s * 0.15, -s * 0.08, s * 0.06, Math.max(1, eyeH), 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(s * 0.15, -s * 0.08, s * 0.06, Math.max(1, eyeH), 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eye highlights
+      if (blinkAmt < 0.5) {
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(-s * 0.13, -s * 0.1, s * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(s * 0.17, -s * 0.1, s * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Nose
+      ctx.fillStyle = '#ff8888';
+      ctx.beginPath();
+      ctx.moveTo(0, s * 0.02);
+      ctx.lineTo(-s * 0.03, s * 0.06);
+      ctx.lineTo(s * 0.03, s * 0.06);
+      ctx.closePath();
+      ctx.fill();
+
+      // Whiskers
+      ctx.strokeStyle = '#666';
+      ctx.lineWidth = 1.5;
+      for (let side of [-1, 1]) {
+        for (let i = -1; i <= 1; i++) {
+          ctx.beginPath();
+          ctx.moveTo(side * s * 0.12, s * 0.08 + i * s * 0.04);
+          ctx.lineTo(side * s * 0.4, s * 0.05 + i * s * 0.06);
+          ctx.stroke();
+        }
+      }
+
+      // Mouth
+      if (mouthOpen > 0.05) {
+        // Open mouth
+        const openH = s * 0.12 * mouthOpen;
+        ctx.fillStyle = '#2d1a1a';
+        ctx.beginPath();
+        ctx.ellipse(0, s * 0.12 + openH * 0.3, s * 0.1, openH, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (mouthOpen > 0.5) {
+          ctx.fillStyle = '#e87878';
+          ctx.beginPath();
+          ctx.ellipse(0, s * 0.12 + openH * 0.5, s * 0.05, openH * 0.3, 0, 0, Math.PI);
+          ctx.fill();
+        }
+      } else {
+        // Closed mouth (cat smile)
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.08, s * 0.1);
+        ctx.quadraticCurveTo(-s * 0.02, s * 0.16, 0, s * 0.1);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(s * 0.08, s * 0.1);
+        ctx.quadraticCurveTo(s * 0.02, s * 0.16, 0, s * 0.1);
+        ctx.stroke();
+      }
+
+      // にゃんこ先生 label
+      ctx.fillStyle = '#fff';
+      ctx.font = `${16 * scale}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('にゃんこ先生', 0, s * 0.65);
+    }
+
+    // Main loop
+    function loop(now) {
+      updateAudio();
+      updateBlink(now);
+      draw(now);
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
